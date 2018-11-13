@@ -15,6 +15,9 @@ def parse_arguments():
         description="Train machine Keras models for Htt analyses")
     parser.add_argument("config", help="Path to training config file")
     parser.add_argument("fold", type=int, help="Select the fold to be trained")
+    parser.add_argument(
+        "--friends-config", required=True, help="Config for custom friends"
+    )
     return parser.parse_args()
 
 
@@ -37,7 +40,7 @@ def setup_logging(level, output_file=None):
         logger.addHandler(file_handler)
 
 
-def main(args, config):
+def main(args, config, friends_config):
     # Set seed and import packages
     # NOTE: This need to be done before any keras module is imported!
     logger.debug("Import packages and set random seed to %s.",
@@ -66,6 +69,12 @@ def main(args, config):
     y = []
     w = []
     rfile = ROOT.TFile(filename, "READ")
+    ffiles = []
+    for falias in friends_config["friend_aliases"]:
+        basename = os.path.basename(filename)
+        dirname = os.path.dirname(filename)
+        ffile = ROOT.TFile("{}/{}_{}".format(dirname, falias, basename), "READ")
+        ffiles.append(ffile)
     classes = config["classes"]
     for i_class, class_ in enumerate(classes):
         logger.debug("Process class %s.", class_)
@@ -73,6 +82,15 @@ def main(args, config):
         if tree == None:
             logger.fatal("Tree %s not found in file %s.", class_, filename)
             raise Exception
+
+        ftrees = []
+        for i_ffile, ffile in enumerate(ffiles):
+            ftree = ffile.Get(class_)
+            if ftree == None:
+                logger.fatal("Tree %s not found in file %s.", class_, repr(ffile))
+                raise Exception
+            tree.AddFriend(ftree, friends_config["friend_aliases"][i_ffile])
+            ftrees.append(ftree)
 
         # Get inputs for this class
         x_class = np.zeros((tree.GetEntries(), len(variables)))
@@ -223,4 +241,5 @@ if __name__ == "__main__":
     setup_logging(logging.DEBUG)
     args = parse_arguments()
     config = parse_config(args.config)
+    friends_config = parse_config(args.friends_config)
     main(args, config)
