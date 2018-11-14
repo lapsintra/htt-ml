@@ -242,4 +242,4 @@ if __name__ == "__main__":
     args = parse_arguments()
     config = parse_config(args.config)
     friends_config = parse_config(args.friends_config)
-    main(args, config)
+    main(args, config, friends_config)
