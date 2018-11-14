@@ -50,6 +50,24 @@ def main(args, config_dataset, config_training, config_application):
         raise Exception("Input tree {} is not existent in file: {}".format(
             args.tree, args.input))
 
+    friend_inputs = []
+    for fdir in config_dataset["friend_dirs"]:
+        basename = "/".join(args.input.split("/")[-2:])
+        path = os.path.join(fdir, basename)
+        friend_input = ROOT.TFile(path, "READ")
+        if friend_input == None:
+            raise Exception("File is not existent: {}".format(path))
+        friend_inputs.append(friend_input)
+
+    ftrees = []
+    for i, finput in enumerate(friend_inputs):
+        ftree = finput.Get(args.tree)
+        if ftree == None:
+            raise Exception("Input tree {} is not existent in file: {}".format(
+                args.tree, repr(finput)))
+        tree_input.AddFriend(ftree, config_dataset["friend_aliases"][i])
+        ftrees.append(ftree)
+
     values = []
     for variable in config_training["variables"]:
         typename = tree_input.GetLeaf(variable).GetTypeName()
@@ -133,6 +151,8 @@ def main(args, config_dataset, config_training, config_application):
 
     # Write new branches to output file
     file_input.Close()
+    for file_ in friend_inputs:
+        file_.Close()
     file_output.Write()
     file_output.Close()
 
