@@ -32,6 +32,9 @@ def parse_arguments():
     parser.add_argument("config_training", help="Path to training config file")
     parser.add_argument("config_testing", help="Path to testing config file")
     parser.add_argument("fold", type=int, help="Trained model to be tested.")
+    parser.add_argument(
+        "--friends-config", required=True, help="Config for custom friends"
+    )
     return parser.parse_args()
 
 
@@ -97,7 +100,7 @@ def print_matrix(p, title):
         stdout.write('\b\b\\\\\n')
 
 
-def main(args, config_test, config_train):
+def main(args, config_test, config_train, config_friends):
     path = os.path.join(config_train["output_path"],
                         config_test["preprocessing"][args.fold])
     logger.info("Load preprocessing %s.", path)
@@ -111,6 +114,12 @@ def main(args, config_test, config_train):
     path = os.path.join(config_train["datasets"][(1, 0)[args.fold]])
     logger.info("Loop over test dataset %s to get model response.", path)
     file_ = ROOT.TFile(path)
+    ffiles = []
+    for falias in config_friends["friend_aliases"]:
+        basename = os.path.basename(path)
+        dirname = os.path.dirname(path)
+        ffile = ROOT.TFile("{}/{}_{}".format(dirname, falias, basename), "READ")
+        ffiles.append(ffile)
     confusion = np.zeros(
         (len(config_train["classes"]), len(config_train["classes"])),
         dtype=np.float)
@@ -121,6 +130,15 @@ def main(args, config_test, config_train):
         if tree == None:
             logger.fatal("Tree %s does not exist.", class_)
             raise Exception
+
+        ftrees = []
+        for i_ffile, ffile in enumerate(ffiles):
+            ftree = ffile.Get(class_)
+            if ftree == None:
+                logger.fatal("Tree %s does not exist in %s.", class_, repr(ffile))
+                raise Exception
+            tree.AddFriend(ftree, config_friends["friend_aliases"][i_ffile])
+            ftrees.append(ftree)
 
         values = []
         for variable in config_train["variables"]:
@@ -175,4 +193,5 @@ if __name__ == "__main__":
     args = parse_arguments()
     config_test = parse_config(args.config_testing)
     config_train = parse_config(args.config_training)
-    main(args, config_test, config_train)
+    config_friends = parse_config(args.friends_config)
+    main(args, config_test, config_train, config_friends)
