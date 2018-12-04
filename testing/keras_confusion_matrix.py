@@ -31,6 +31,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description="Produce confusion matrice")
     parser.add_argument("config_training", help="Path to training config file")
     parser.add_argument("config_testing", help="Path to testing config file")
+    parser.add_argument("config_friends", help="Path to testing config file")
     parser.add_argument("fold", type=int, help="Trained model to be tested.")
     parser.add_argument(
         "--friends-config", required=True, help="Config for custom friends"
